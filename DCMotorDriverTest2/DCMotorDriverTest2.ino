@@ -21,12 +21,12 @@
 
 MeDCMotor motorLeft(M1);
 MeDCMotor motorRight(M2);
-MeLineFollower lineFinder(PORT_3); /* Line Finder module can only be connected to PORT_3, PORT_4, PORT_5, PORT_6 of base shield. */
+MeLineFollower lineFinder(PORT_7); /* Line Finder module can only be connected to PORT_3, PORT_4, PORT_5, PORT_6 of base shield. */
 
 
 //Constants
-uint8_t LMotorSpeed = 95;
-uint8_t RMotorSpeed = 85;
+int LMotorSpeed = -95;
+int RMotorSpeed = 85;
 int LTurnTime = 700;
 int RTurnTime = 700;
 
@@ -36,7 +36,7 @@ bool lineIRSenseState[2] = {0, 0};
 
 void setup()
 {
-  Serial.begin(115200);
+  Serial.begin(9600);
   moveUntilSeeLine();
   moveTurn(-1);
   moveStraight(300);
@@ -53,12 +53,12 @@ void loop()
 
 void moveStraight(int dist) { //fwd is +ve
   if (dist > 0) {
-    motorLeft.run(-LMotorSpeed);
+    motorLeft.run(LMotorSpeed);
     motorRight.run(RMotorSpeed);
     delay(dist);
   }
   if (dist < 0) {
-    motorLeft.run(LMotorSpeed);
+    motorLeft.run(-LMotorSpeed);
     motorRight.run(-RMotorSpeed);
     delay(-dist);
   }
@@ -68,7 +68,7 @@ void moveStraight(int dist) { //fwd is +ve
 
 void moveTurn(int deg) { //right is +ve
   if (deg > 0) {
-    motorLeft.run(-LMotorSpeed);
+    motorLeft.run(LMotorSpeed);
     motorRight.run(-RMotorSpeed);
     delay(deg*RTurnTime);
 
@@ -81,7 +81,7 @@ void moveTurn(int deg) { //right is +ve
   }
 
   if (deg < 0) {
-    motorLeft.run(LMotorSpeed);
+    motorLeft.run(-LMotorSpeed);
     motorRight.run(RMotorSpeed);
     delay(-deg*LTurnTime);
 
@@ -102,10 +102,10 @@ void updateLineIRSense() { //Returns array for L & R, 1 = see black
   
   switch(IROutput)
   {
-    case S1_IN_S2_IN: lineIRSenseState[0] = 1; lineIRSenseState[1] = 1; break;
-    case S1_IN_S2_OUT: lineIRSenseState[0] = 1; lineIRSenseState[1] = 0; break;
-    case S1_OUT_S2_IN: lineIRSenseState[0] = 0; lineIRSenseState[1] = 1; break;
-    case S1_OUT_S2_OUT: lineIRSenseState[0] = 0; lineIRSenseState[1] = 0; break;
+    case S1_IN_S2_IN: lineIRSenseState[0] = 1; lineIRSenseState[1] = 0; break;
+    case S1_IN_S2_OUT: lineIRSenseState[0] = 0; lineIRSenseState[1] = 0; break;
+    case S1_OUT_S2_IN: lineIRSenseState[0] = 1; lineIRSenseState[1] = 0; break;
+    case S1_OUT_S2_OUT: lineIRSenseState[0] = 1; lineIRSenseState[1] = 1; break;
     default: break;
   }
 
@@ -113,7 +113,7 @@ void updateLineIRSense() { //Returns array for L & R, 1 = see black
 }
 
 void moveUntilSeeLine() {
-  motorLeft.run(-LMotorSpeed);
+  motorLeft.run(LMotorSpeed);
   motorRight.run(RMotorSpeed);
   while (true) {
     updateLineIRSense();
