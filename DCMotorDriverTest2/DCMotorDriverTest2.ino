@@ -21,36 +21,35 @@
 
 MeDCMotor motorLeft(M1);
 MeDCMotor motorRight(M2);
+MeLineFollower lineFinder(PORT_3); /* Line Finder module can only be connected to PORT_3, PORT_4, PORT_5, PORT_6 of base shield. */
 
 
 //Constants
 uint8_t LMotorSpeed = 95;
 uint8_t RMotorSpeed = 85;
-int LTurnTime = 1100;
-int RTurnTime = 1100;
+int LTurnTime = 700;
+int RTurnTime = 700;
+
+//Global variables
+int facingDeg = 2; //0: North, 1: East, 2: South, 3: West ^><v
+bool lineIRSenseState[2] = {0, 0};
 
 void setup()
 {
+  Serial.begin(115200);
+  moveUntilSeeLine();
+  moveTurn(-1);
+  moveStraight(300);
+  moveTurn(-1);
+  moveUntilSeeLine();
 }
 
 void loop()
 {
-  moveStraight(3000);
-  delay(1000);
-  moveStraight(-3000);
-  delay(1000);
-  turn(90);
-  delay(1000);
-  turn(-90);
+
 }
 
-/*void moveLCompensated(int dist) {
-  motorLeft.run(-LMotorSpeed);
-}
 
-void moveRCompensated(int dist) {
-  motorRight.run(RMotorSpeed);
-}*/
 
 void moveStraight(int dist) { //fwd is +ve
   if (dist > 0) {
@@ -67,16 +66,61 @@ void moveStraight(int dist) { //fwd is +ve
   motorRight.stop();
 }
 
-void turn(int deg) { //right is +ve
+void moveTurn(int deg) { //right is +ve
   if (deg > 0) {
     motorLeft.run(-LMotorSpeed);
     motorRight.run(-RMotorSpeed);
-    delay(((float)deg/90.0)*RTurnTime);
+    delay(deg*RTurnTime);
+
+    if ((facingDeg + deg) < 4) {
+      deg = deg + facingDeg;
+    }
+    else {
+      deg = deg + facingDeg - 4;
+    }
   }
+
   if (deg < 0) {
     motorLeft.run(LMotorSpeed);
     motorRight.run(RMotorSpeed);
-    delay(((float)-deg/90.0)*LTurnTime);
+    delay(-deg*LTurnTime);
+
+    if ((facingDeg + deg) >= 0) {
+      deg = deg + facingDeg;
+    }
+    else {
+      deg = deg + facingDeg + 4;
+    }
+  }
+
+  motorLeft.stop();
+  motorRight.stop();
+}
+
+void updateLineIRSense() { //Returns array for L & R, 1 = see black
+  int IROutput = lineFinder.readSensors();
+  
+  switch(IROutput)
+  {
+    case S1_IN_S2_IN: lineIRSenseState[0] = 1; lineIRSenseState[1] = 1; break;
+    case S1_IN_S2_OUT: lineIRSenseState[0] = 1; lineIRSenseState[1] = 0; break;
+    case S1_OUT_S2_IN: lineIRSenseState[0] = 0; lineIRSenseState[1] = 1; break;
+    case S1_OUT_S2_OUT: lineIRSenseState[0] = 0; lineIRSenseState[1] = 0; break;
+    default: break;
+  }
+
+  Serial.println(IROutput);
+}
+
+void moveUntilSeeLine() {
+  motorLeft.run(-LMotorSpeed);
+  motorRight.run(RMotorSpeed);
+  while (true) {
+    updateLineIRSense();
+    if (lineIRSenseState[0] == 1 || lineIRSenseState[1] == 1) {
+      break;
+    }
+    delay(50);
   }
   motorLeft.stop();
   motorRight.stop();
