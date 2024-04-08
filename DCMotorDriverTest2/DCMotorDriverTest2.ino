@@ -23,6 +23,7 @@ MeDCMotor motorLeft(M1);
 MeDCMotor motorRight(M2);
 //Actual port number = port number on board + 3
 MeLineFollower lineFinder(PORT_6); /* Line Finder module can only be connected to PORT_3, PORT_4, PORT_5, PORT_6 of base shield. */ 
+MeUltrasonicSensor ultraSensor(PORT_7); /* Ultrasonic module can ONLY be connected to port 3, 4, 6, 7, 8 of base shield. */
 
 
 //Constants
@@ -34,6 +35,8 @@ int RTurnTime = 930; //Time taken to turn 90deg
 //Global variables
 int facingDeg = 2; //Clockwise is +ve     0: North, 1: East, 2: South, 3: West ^><v
 bool lineIRSenseState[2] = {0, 0};
+
+bool dir = true;
 
 void setup()
 {
@@ -324,6 +327,21 @@ void moveTurn(int deg) { //right is +ve, heading increase clockwise
 
   Serial.print("facingDeg: ");
   Serial.println(facingDeg);
-
 }
 
+
+void avoidObject()  {
+  int checkStepDIST = 0.5;    // dist before checking for object
+  int objectDist = 4;         // dist  away from object
+
+  if (ultraSensor.distanceCm() < objectDist) //distance from bottle, in cm
+  {
+    if (dir == 1)
+    {
+      moveTurn(1);
+      moveStraight(checkStepDIST);
+      moveTurn(-1);
+      avoidObject();
+    }
+  }
+}
