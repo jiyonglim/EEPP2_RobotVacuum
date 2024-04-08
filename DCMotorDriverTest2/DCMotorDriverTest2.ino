@@ -37,15 +37,17 @@ bool lineIRSenseState[2] = {0, 0};
 
 void setup()
 {
-  Serial.begin(115200);
-  //zigzag();
+  //Serial.begin(115200);
+  //zigzag(5);
   /*for (int m = 0; m < 8; m++) {
     moveTurn(4);
     delay(500);
     moveTurn(-4);
     delay(500);
   }*/
-  moveTurnUntilSeeLine(-1);
+  //moveTurnUntilSeeLine(-1);
+  //moveStraightFollowLine(5000);
+  zigzag_two(5);
 }
 
 void loop()
@@ -53,8 +55,37 @@ void loop()
   delay(100);
 }
 
-void zigzag() {
-  int numberZigZags = 5;
+void zigzag_two(int numberZigZags) { //Version that follows the line when its on the edge
+//Start from top right, move down, overall zigzag towards the right
+  for (int i = 0; i < numberZigZags; i++) {
+    moveStraightUntilSeeLine();
+    moveStraight(700);
+
+    bool topOrBottom; //At top edge = 1, Bottom edge = 0
+
+    if(facingDeg == 2) {
+      moveTurnUntilSeeLine(-1);
+      topOrBottom = 0;
+    }
+    if(facingDeg == 0) {
+      moveTurnUntilSeeLine(1);
+      topOrBottom = 1;
+    }
+
+    moveStraightFollowLine(400);
+
+    if(topOrBottom == 0) {
+      moveTurn(-1);
+    }
+    if(topOrBottom == 1) {
+      moveTurn(1);
+    }
+
+    moveStraight(600);
+  }
+}
+
+void zigzag(int numberZigZags) {
   //Start from top right, move down, overall zigzag towards the right
   for (int i = 0; i < numberZigZags; i++) {
     moveStraightUntilSeeLine();
@@ -80,7 +111,7 @@ void zigzag() {
       moveTurn(1);
     }
 
-    moveStraight(900);
+    moveStraight(600);
   }
 }
 
@@ -100,8 +131,6 @@ void updateLineIRSense() { //Returns array for L & R, 1 = see black
   Serial.print(lineIRSenseState[0]);
   Serial.print(lineIRSenseState[1]);
 }
-
-
 
 
 void moveTurnUntilSeeLine(int input) { //Will turn left or right until it sees a black line, should turn ~90deg only 
@@ -156,6 +185,7 @@ void moveTurnUntilSeeLine(int input) { //Will turn left or right until it sees a
   }
 }
 
+
 void moveStraightUntilSeeLine() { //Will reposition to ensure it is perpendicular to the line
   motorLeft.run(LMotorSpeed);
   motorRight.run(RMotorSpeed);
@@ -201,6 +231,49 @@ void moveStraightUntilSeeLine() { //Will reposition to ensure it is perpendicula
 
   motorLeft.stop();
   motorRight.stop();
+}
+
+
+int moveStraightFollowLine(double distance) { //Returns 1 if finishes following line for duration successfully, returns 0 if runs out of line, returns -1 if doesnt see line at beginning
+  updateLineIRSense();
+  if (lineIRSenseState[0] == 0 && lineIRSenseState[1] == 0) {
+    return -1;
+  }
+  
+  long startTime = millis();
+  long endTime = millis();
+
+  while ((endTime - startTime) < distance) {
+    updateLineIRSense();
+    endTime = millis();
+
+    if(lineIRSenseState[0] == 1 || lineIRSenseState[1] == 1) {
+      if(lineIRSenseState[0] == 0 && lineIRSenseState[1] == 1) { //No line on left --> turn right
+        motorLeft.run(LMotorSpeed);
+        motorRight.run(-RMotorSpeed);
+      }
+      if(lineIRSenseState[0] == 1 && lineIRSenseState[1] == 0) { //No line on right --> turn left
+        motorLeft.run(-LMotorSpeed);
+        motorRight.run(RMotorSpeed);
+      }
+      if(lineIRSenseState[0] == 1 && lineIRSenseState[1] == 1) { //Line on both sides
+        motorLeft.run(LMotorSpeed);
+        motorRight.run(RMotorSpeed);
+      }
+    }
+    else if((endTime - startTime) >= distance){
+      return 1;
+    }
+    else if(lineIRSenseState[0] == 0 && lineIRSenseState[1] == 0){
+      return 0;
+    }
+
+    delay(10);
+    motorLeft.stop();
+    motorRight.stop();
+  }
+
+  return 1;
 }
 
 
