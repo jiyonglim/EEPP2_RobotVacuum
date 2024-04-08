@@ -28,8 +28,8 @@ MeLineFollower lineFinder(PORT_6); /* Line Finder module can only be connected t
 //Constants
 int LMotorSpeed = -85;
 int RMotorSpeed = 70;
-int LTurnTime = 800; //Time taken to turn 90deg
-int RTurnTime = 830; //Time taken to turn 90deg
+int LTurnTime = 900; //Time taken to turn 90deg
+int RTurnTime = 930; //Time taken to turn 90deg
 
 //Global variables
 int facingDeg = 2; //Clockwise is +ve     0: North, 1: East, 2: South, 3: West ^><v
@@ -38,13 +38,14 @@ bool lineIRSenseState[2] = {0, 0};
 void setup()
 {
   Serial.begin(115200);
-  zigzag();
+  //zigzag();
   /*for (int m = 0; m < 8; m++) {
     moveTurn(4);
     delay(500);
     moveTurn(-4);
     delay(500);
   }*/
+  moveTurnUntilSeeLine(-1);
 }
 
 void loop()
@@ -56,7 +57,7 @@ void zigzag() {
   int numberZigZags = 5;
   //Start from top right, move down, overall zigzag towards the right
   for (int i = 0; i < numberZigZags; i++) {
-    moveUntilSeeLine();
+    moveStraightUntilSeeLine();
     moveStraight(700);
 
     bool topOrBottom; //At top edge = 1, Bottom edge = 0
@@ -83,55 +84,6 @@ void zigzag() {
   }
 }
 
-void moveStraight(int dist) { //fwd is +ve
-  if (dist > 0) {
-    motorLeft.run(LMotorSpeed);
-    motorRight.run(RMotorSpeed);
-    delay(dist);
-  }
-  if (dist < 0) {
-    motorLeft.run(-LMotorSpeed);
-    motorRight.run(-RMotorSpeed);
-    delay(-dist);
-  }
-  motorLeft.stop();
-  motorRight.stop();
-}
-
-void moveTurn(int deg) { //right is +ve, heading increase clockwise
-  if (deg > 0) {
-    motorLeft.run(LMotorSpeed);
-    motorRight.run(-RMotorSpeed);
-    delay(deg*RTurnTime);
-
-    if ((facingDeg + deg) < 4) {
-      facingDeg = facingDeg + deg;
-    }
-    else {
-      facingDeg = facingDeg + deg - 4;
-    }
-  }
-
-  if (deg < 0) {
-    motorLeft.run(-LMotorSpeed);
-    motorRight.run(RMotorSpeed);
-    delay(-deg*LTurnTime);
-
-    if ((facingDeg + deg) >= 0) {
-      facingDeg = facingDeg + deg;
-    }
-    else {
-      facingDeg = facingDeg + deg + 4;
-    }
-  }
-  motorLeft.stop();
-  motorRight.stop();
-
-  Serial.print("facingDeg: ");
-  Serial.println(facingDeg);
-
-}
-
 void updateLineIRSense() { //Returns array for L & R, 1 = see black
   int IROutput = lineFinder.readSensors();
   
@@ -149,7 +101,62 @@ void updateLineIRSense() { //Returns array for L & R, 1 = see black
   Serial.print(lineIRSenseState[1]);
 }
 
-void moveUntilSeeLine() { //Will reposition to ensure it is perpendicular to the line
+
+
+
+void moveTurnUntilSeeLine(int input) { //Will turn left or right until it sees a black line, should turn ~90deg only 
+  if (input == 1) {
+    motorLeft.run(LMotorSpeed);
+    motorRight.run(-RMotorSpeed);
+
+    bool exitLoop = 0;
+    while (exitLoop == 0) {
+      updateLineIRSense();
+      if (lineIRSenseState[0] == 1) {
+        exitLoop = 1;
+        motorLeft.stop();
+        motorRight.stop();
+      }
+    }
+    //delay(deg*RTurnTime);
+
+    if ((facingDeg + 1) < 4) {
+      facingDeg = facingDeg + 1;
+    }
+    else {
+      facingDeg = facingDeg + 1 - 4;
+    }
+
+  }
+
+
+  else if (input == -1) {
+    motorLeft.run(-LMotorSpeed);
+    motorRight.run(RMotorSpeed);
+    
+    bool exitLoop = 0;
+    while (exitLoop == 0) {
+      updateLineIRSense();
+      if (lineIRSenseState[1] == 1) {
+        exitLoop = 1;
+        motorLeft.stop();
+        motorRight.stop();
+      }
+    }
+
+
+    //delay(-deg*LTurnTime);
+
+    if ((facingDeg - 1) >= 0) {
+      facingDeg = facingDeg - 1;
+    }
+    else {
+      facingDeg = facingDeg - 1 + 4;
+    }
+  }
+}
+
+void moveStraightUntilSeeLine() { //Will reposition to ensure it is perpendicular to the line
   motorLeft.run(LMotorSpeed);
   motorRight.run(RMotorSpeed);
   bool seenLine = 0; //Flag exists such that if robot sees line but overshoots when adjusting, it knows to exit
@@ -195,3 +202,55 @@ void moveUntilSeeLine() { //Will reposition to ensure it is perpendicular to the
   motorLeft.stop();
   motorRight.stop();
 }
+
+
+void moveStraight(int dist) { //fwd is +ve
+  if (dist > 0) {
+    motorLeft.run(LMotorSpeed);
+    motorRight.run(RMotorSpeed);
+    delay(dist);
+  }
+  if (dist < 0) {
+    motorLeft.run(-LMotorSpeed);
+    motorRight.run(-RMotorSpeed);
+    delay(-dist);
+  }
+  motorLeft.stop();
+  motorRight.stop();
+}
+
+
+void moveTurn(int deg) { //right is +ve, heading increase clockwise
+  if (deg > 0) {
+    motorLeft.run(LMotorSpeed);
+    motorRight.run(-RMotorSpeed);
+    delay(deg*RTurnTime);
+
+    if ((facingDeg + deg) < 4) {
+      facingDeg = facingDeg + deg;
+    }
+    else {
+      facingDeg = facingDeg + deg - 4;
+    }
+  }
+
+  if (deg < 0) {
+    motorLeft.run(-LMotorSpeed);
+    motorRight.run(RMotorSpeed);
+    delay(-deg*LTurnTime);
+
+    if ((facingDeg + deg) >= 0) {
+      facingDeg = facingDeg + deg;
+    }
+    else {
+      facingDeg = facingDeg + deg + 4;
+    }
+  }
+  motorLeft.stop();
+  motorRight.stop();
+
+  Serial.print("facingDeg: ");
+  Serial.println(facingDeg);
+
+}
+
