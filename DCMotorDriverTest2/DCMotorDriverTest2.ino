@@ -36,8 +36,6 @@ int RTurnTime = 930; //Time taken to turn 90deg
 int facingDeg = 2; //Clockwise is +ve     0: North, 1: East, 2: South, 3: West ^><v
 bool lineIRSenseState[2] = {0, 0};
 
-bool dir = true;
-
 void setup()
 {
   //Serial.begin(115200);
@@ -336,7 +334,7 @@ void avoidObject()  {
 
   if (ultraSensor.distanceCm() < objectDist) //distance from bottle, in cm
   {
-    if (dir == 1)
+    if (facingDeg == 0)
     {
       moveTurn(1);
       moveStraight(checkStepDIST);
