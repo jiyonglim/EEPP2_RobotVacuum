@@ -30,9 +30,10 @@ const int pressureSensorPin = 9;
 
 //Movement Constants
 int LMotorSpeed = -85;
-int RMotorSpeed = 70;
-int LTurnTime = 850; //Time taken to turn 90deg
-int RTurnTime = 880; //Time taken to turn 90deg
+int RMotorSpeed = 70+5;
+int LTurnTime = 850+100; //Time taken to turn 90deg
+int RTurnTime = 880+100; //Time taken to turn 90deg
+int timeToLineMiddle = 700; //timeFromFirstSeeLineToMovementCentreOverLine
 
 //Global variables
 int facingDeg = 2; //Clockwise is +ve     0: North, 1: East, 2: South, 3: West ^><v
@@ -43,6 +44,7 @@ void setup()
   pinMode(pressureSensorPin, INPUT);
   //buzzer.tone(440);
   Serial.begin(115200);
+  pinMode(A0, INPUT);
   //delay(1000);
   //buzzer.noTone();
   //Serial.println(digitalRead(pressureSensorPin) == 0);
@@ -55,7 +57,8 @@ void setup()
   }*/
   //moveTurnUntilSeeLine(-1);
   //moveStraightFollowLine(5000);
-  zigzag_two(4);
+  zigzag_two(3);
+  returnHome();
 }
 
 void loop()
@@ -67,7 +70,7 @@ void zigzag_two(int numberZigZags) { //Version that follows the line when its on
 //Start from top right, facing down (south), overall zigzag towards the right
   for (int i = 0; i < numberZigZags; i++) {
     moveStraightUntilSeeLineWithObstDetectAndDustAlarm(); //Will find obstacle here
-    moveStraight(700);
+    moveStraight(timeToLineMiddle);
 
     bool topOrBottom; //At top edge = 1, Bottom edge = 0
 
@@ -80,7 +83,7 @@ void zigzag_two(int numberZigZags) { //Version that follows the line when its on
       topOrBottom = 1; //Right
     }
 
-    moveStraightFollowLine(1000);
+    moveStraightFollowLine(1200);
 
     if(topOrBottom == 0) {
       moveTurn(-1); //Left
@@ -356,7 +359,7 @@ void moveTurn(int deg) { //right is +ve, heading increase clockwise
 bool avoidObject()  { //Once it sees an object, turn right, move, turn left, move, turn left, move, turn right, go straight until see line //Assumes obstscle is a cube-ish
   int checkDist = 5; // dist before checking for object
   int objectWidthMoveDist = 1200; //width of object face it sees
-  int objectLengthMoveDist = 1800; //length of object face perpendicular to first face
+  int objectLengthMoveDist = 2000; //length of object face perpendicular to first face
 
 
   if (ultraSensor.distanceCm() < checkDist) { //distance from obstacle, in cm
@@ -394,13 +397,84 @@ bool detectDustbagAndAlarm() {
     motorLeft.stop();
     motorRight.stop();
     
-    while(true) { //Lock up the robot forever
+    for(int i = 0; i < 5; i++) { //Lock up the robot forever
       buzzer.tone(840, 500);
       buzzer.noTone();
       delay(500);
+    }
+
+    while(true) {
+      delay(1000);
     }
   }
 
   return false;
 }
 
+
+int HomingMoveStraightFollowLine() { //Returns 0 if runs out of line, returns -1 if doesnt see line at beginning, return 2 if docked
+  updateLineIRSense();
+
+  if (lineIRSenseState[0] == 0 && lineIRSenseState[1] == 0) {
+    return -1;
+  }
+
+  bool atDock = 0;
+
+  while (atDock == 0) {
+    updateLineIRSense();
+
+    if(lineIRSenseState[0] == 1 || lineIRSenseState[1] == 1) {
+      if(lineIRSenseState[0] == 0 && lineIRSenseState[1] == 1) { //No line on left --> turn right
+        motorLeft.run(LMotorSpeed);
+        motorRight.run(-RMotorSpeed);
+      }
+      if(lineIRSenseState[0] == 1 && lineIRSenseState[1] == 0) { //No line on right --> turn left
+        motorLeft.run(-LMotorSpeed);
+        motorRight.run(RMotorSpeed);
+      }
+      if(lineIRSenseState[0] == 1 && lineIRSenseState[1] == 1) { //Line on both sides
+        motorLeft.run(LMotorSpeed);
+        motorRight.run(RMotorSpeed);
+      }
+    }
+    else if(lineIRSenseState[0] == 0 && lineIRSenseState[1] == 0){
+      motorLeft.stop();
+      motorRight.stop();
+      return 0;
+    }
+    if((analogRead(A0) < 973) && (ultraSensor.distanceCm() < 7)) {
+      motorLeft.stop();
+      motorRight.stop();
+      return 2;
+    }
+
+    delay(10);
+    motorLeft.stop();
+    motorRight.stop();
+  }
+}
+
+bool returnHome() { //978 if out of range, 971 if nearby, 970 if at the dock
+  moveStraightUntilSeeLine();
+  moveStraight(timeToLineMiddle);
+  moveTurn(1);
+
+  bool docked = 0;
+
+  while(docked == 0) {
+    int returnVal = HomingMoveStraightFollowLine();
+
+    if (returnVal == 2) {
+      docked = 1;
+      return 1;
+    }
+    if (returnVal == 0) {
+      moveStraight(500);
+      moveTurn(1);
+    }
+    if (returnVal == -1) {
+      moveTurnUntilSeeLine(1);
+    }
+  }
+}
