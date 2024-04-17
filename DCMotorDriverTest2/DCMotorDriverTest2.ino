@@ -42,6 +42,7 @@ bool lineIRSenseState[2] = {0, 0};
 void setup()
 {
   pinMode(pressureSensorPin, INPUT);
+  pinMode(LED_BUILTIN, OUTPUT);
   //buzzer.tone(440);
   Serial.begin(115200);
   pinMode(A0, INPUT);
@@ -398,8 +399,10 @@ bool detectDustbagAndAlarm() {
     motorRight.stop();
     
     for(int i = 0; i < 5; i++) { //Lock up the robot forever
-      buzzer.tone(840, 500);
+      digitalWrite(LED_BUILTIN, HIGH);
+      buzzer.tone(840, 500);      
       buzzer.noTone();
+      digitalWrite(LED_BUILTIN, LOW);
       delay(500);
     }
 
